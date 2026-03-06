@@ -185,6 +185,18 @@ def main():
     torch.set_num_threads(num_cpus)
     print(f"🔒 Limitando CPU a {num_cpus} hilos")
     
+    # --- VERIFICACIONES PREVIAS ---
+    # Asegurarse de que ffmpeg exista antes de empezar; el resto del
+    # procesamiento depende de él.
+    if not shutil.which('ffmpeg'):
+        print("❌ ffmpeg no encontrado. Instala ffmpeg antes de ejecutar este script.")
+        print("   En Ubuntu/Debian: sudo apt-get install ffmpeg")
+        print("   En macOS: brew install ffmpeg")
+        return
+    # Opcional: avisar si sox no está presente (algunos usuarios lo esperan)
+    if not shutil.which('sox'):
+        print("⚠️ sox no encontrado. Si tu flujo lo requiere instala sox o ignora este aviso.")
+    
     # Determinar dispositivo preferido y limitar memoria si es CUDA
     device = get_preferred_device()
     if device.startswith("cuda"):
@@ -229,6 +241,13 @@ def main():
     print(f"💾 CUDA disponible: {torch.cuda.is_available()}")
     print(f"🔢 Hilos de CPU configurados: {torch.get_num_threads()}")
 
+    # liberar cualquier memoria GPU previa antes de cargar el modelo
+    if device.startswith("cuda"):
+        torch.cuda.empty_cache()
+        print("🗑️ Liberando caché CUDA antes de cargar el modelo")
+        print("   (puedes también establecer PYTORCH_ALLOC_CONF=expandable_segments:True")
+        print("    para reducir fragmentación si sigues recibiendo OOM)")
+
     print(f"\n🚀 Cargando modelo {modelo_nombre}...")
     print(f"   (esto puede tardar varios minutos la primera vez...)")
 
@@ -248,6 +267,12 @@ def main():
         if os.path.exists(temp_file):
             print(f"⏭️  Bloque {i+1}/{len(bloques)} ya existe, saltando...")
             continue
+
+        # limpiar memoria intermedia antes de empezar
+        if device.startswith("cuda"):
+            torch.cuda.empty_cache()
+            import gc
+            gc.collect()
 
         print(f"⏳ Procesando bloque {i+1}/{len(bloques)}...")
         print(f"   Longitud del texto: {len(parrafo)} caracteres")
@@ -333,6 +358,7 @@ def main():
 
     print("🔗 Uniendo archivos...")
     archivos = sorted([f"temp_audio/{f}" for f in os.listdir("temp_audio") if f.endswith(".wav")])
+    podcast_success = False
     if archivos:
         lista_audios = []
         for archivo in archivos:
@@ -372,8 +398,10 @@ def main():
         normalizar_audio_ffmpeg(output_file, output_file)
         
         print(f"✅ ¡Hecho! Podcast final guardado en: {output_file}")
-        
-        # Limpiar la carpeta temp_audio después del éxito
+        podcast_success = True
+    
+    # Limpiar la carpeta temp_audio sólo si todo salió bien
+    if podcast_success:
         print("🧹 Limpiando archivos temporales...")
         shutil.rmtree("temp_audio")
         print("✓ Carpeta temp_audio eliminada")

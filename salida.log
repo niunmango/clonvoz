@@ -1,0 +1,76 @@
+/bin/sh: 1: sox: not found
+SoX could not be found!
+
+    If you do not have SoX, proceed here:
+     - - - http://sox.sourceforge.net/ - - -
+
+    If you do (or think that you should) have SoX, double-check your
+    path variables.
+    
+[0;93m2026-03-06 17:32:41.193869820 [W:onnxruntime:Default, device_discovery.cc:211 DiscoverDevicesForPlatform] GPU device discovery failed: device_discovery.cc:91 ReadFileContents Failed to open file: "/sys/class/drm/card0/device/vendor"[m
+
+********
+Warning: flash-attn is not installed. Will only run the manual PyTorch version. Please install flash-attn for faster inference.
+********
+ 
+🔒 Limitando CPU a 6 hilos
+🎮 GPU detectada: NVIDIA GeForce RTX 3060 (índice 0 de 1, vendor: NVIDIA)
+📊 CUDA Capability: (8, 6)
+🔒 Limitando GPU memory al 80% (cuda:0)
+📁 Validando archivos de entrada...
+   ✓ guion.txt encontrado
+   ✓ sampleCorto.txt encontrado
+   ✓ sampleCorto.wav encontrado
+📖 Cargando textos...
+✅ Modelo a usar: Completo (1.7B)
+
+🗣️ Aplicando acento rioplatense...
+🔧 PyTorch versión: 2.10.0+cu128
+💾 CUDA disponible: True
+🔢 Hilos de CPU configurados: 6
+
+🚀 Cargando modelo Completo (1.7B)...
+   (esto puede tardar varios minutos la primera vez...)
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 66576.25it/s]
+🎙️ Generando 13 bloque(s)...
+
+⏳ Procesando bloque 1/13...
+   Longitud del texto: 852 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 2/13...
+   Longitud del texto: 643 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 3/13...
+   Longitud del texto: 895 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 4/13...
+   Longitud del texto: 447 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 5/13...
+   Longitud del texto: 628 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 6/13...
+   Longitud del texto: 853 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 7/13...
+   Longitud del texto: 624 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 8/13...
+   Longitud del texto: 600 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 9/13...
+   Longitud del texto: 564 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 10/13...
+   Longitud del texto: 667 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 11/13...
+   Longitud del texto: 338 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 12/13...
+   Longitud del texto: 427 caracteres
+   ✓ Audio generado
+⏳ Procesando bloque 13/13...
+   Longitud del texto: 213 caracteres
+   ✓ Audio generado
+🔗 Uniendo archivos...
