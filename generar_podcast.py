@@ -276,6 +276,9 @@ def main():
 
         print(f"⏳ Procesando bloque {i+1}/{len(bloques)}...")
         print(f"   Longitud del texto: {len(parrafo)} caracteres")
+
+        # Intentar generar el audio; si ocurre un OOM vamos a recargar en CPU y reintentar
+        resultado = None
         try:
             with torch.no_grad():
                 resultado = model.generate_voice_clone(
@@ -283,27 +286,21 @@ def main():
                     ref_text=referencia_texto,
                     text=parrafo
                 )
-                print(f"   ✓ Audio generado")
+            print(f"   ✓ Audio generado")
         except RuntimeError as e:
             err_str = str(e).lower()
-            # fallback automático si se queda sin memoria en GPU/MPS
             if ("out of memory" in err_str or "memory" in err_str) and device != "cpu":
                 print(f"   ⚠️ OOM en {device}, recargando modelo en CPU y reintentando...")
-                # liberar cache y recargar modelo en CPU para asegurar que
-                # todo se ejecuta correctamente en la nueva plataforma.
                 if device.startswith("cuda"):
                     torch.cuda.empty_cache()
 
                 device = "cpu"
-                # recargar el modelo **completamente** en CPU para evitar
-                # problemas con accelerate y dispositivos mixtos
                 model = Qwen3TTSModel.from_pretrained(
                     MODEL_ID,
                     trust_remote_code=True,
                     device_map="cpu"
                 )
-                # no hace falta moverlo a mano; ya está en CPU
-                # reintentar la generación una vez en CPU
+
                 with torch.no_grad():
                     resultado = model.generate_voice_clone(
                         ref_audio=REF_AUDIO_FILE,
@@ -312,41 +309,42 @@ def main():
                     )
                 print(f"   ✓ Audio generado en CPU")
             else:
+                # no es un OOM manejado, volver a lanzar y que el bloque se marque como error
                 raise
-
-            # --- EXTRAER TENSOR DEL RESULTADO ---
-            if isinstance(resultado, (list, tuple)):
-                audio_segmento = resultado[0]
-                # Si el primer elemento también es lista/tupla, extraer el tensor
-                if isinstance(audio_segmento, (list, tuple)):
-                    audio_segmento = audio_segmento[0]
-            else:
-                audio_segmento = resultado
-
-            # Convertir a tensor si es necesario y mover a CPU
-            if not isinstance(audio_segmento, torch.Tensor):
-                audio_segmento = torch.tensor(audio_segmento)
-            
-            if audio_segmento.device.type != 'cpu':
-                audio_segmento = audio_segmento.cpu()
-            
-            # Convertir a numpy para guardar con soundfile
-            audio_np = audio_segmento.numpy()
-            
-            # Asegurar dimensión correcta (muestras,) o (canales, muestras)
-            if audio_np.ndim > 2:
-                audio_np = audio_np.squeeze()
-            
-            sf.write(temp_file, audio_np.T if audio_np.ndim == 2 else audio_np, 24000)
-            print(f"   ✓ Guardado correctamente\n")
-            del audio_segmento
-
         except Exception as e:
             print(f"⚠️ Error en bloque {i+1}: {e}")
             log_errores.append(f"Bloque {i+1}: {str(e)}")
             if os.path.exists(temp_file):
                 os.remove(temp_file)
             continue
+
+        # si llegamos aquí, "resultado" debería contener el audio a guardar
+        if resultado is None:
+            # esto no debería pasar nunca, pero por seguridad evitamos intentar escribir un None
+            print(f"⚠️ No se generó audio para el bloque {i+1}")
+            continue
+
+        # --- EXTRAER TENSOR DEL RESULTADO ---
+        if isinstance(resultado, (list, tuple)):
+            audio_segmento = resultado[0]
+            if isinstance(audio_segmento, (list, tuple)):
+                audio_segmento = audio_segmento[0]
+        else:
+            audio_segmento = resultado
+
+        # Convertir a tensor si es necesario y mover a CPU
+        if not isinstance(audio_segmento, torch.Tensor):
+            audio_segmento = torch.tensor(audio_segmento)
+        if audio_segmento.device.type != 'cpu':
+            audio_segmento = audio_segmento.cpu()
+
+        audio_np = audio_segmento.numpy()
+        if audio_np.ndim > 2:
+            audio_np = audio_np.squeeze()
+
+        sf.write(temp_file, audio_np.T if audio_np.ndim == 2 else audio_np, 24000)
+        print(f"   ✓ Guardado correctamente\n")
+        del audio_segmento
     
     # Guardar log de errores si los hubo
     if log_errores:
@@ -357,7 +355,11 @@ def main():
         print(f"⚠️ Se registraron {len(log_errores)} errores en error_log.txt")
 
     print("🔗 Uniendo archivos...")
-    archivos = sorted([f"temp_audio/{f}" for f in os.listdir("temp_audio") if f.endswith(".wav")])
+    # ordenar los archivos por el número de bloque (evitar 1,10,2,...)
+    archivos = sorted(
+        [f"temp_audio/{f}" for f in os.listdir("temp_audio") if f.endswith(".wav")],
+        key=lambda path: int(re.search(r"(\d+)", os.path.basename(path)).group(1))
+    )
     podcast_success = False
     if archivos:
         lista_audios = []
