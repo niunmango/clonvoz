@@ -2,7 +2,7 @@
 torch>=2.3.0
 torchaudio>=2.3.0
 voxcpm>=2.0.0
-flash-attn>=2.5.0; platform_system == "Linux"
+
 
 # Procesamiento de Audio y Señales
 soundfile>=0.12.1
