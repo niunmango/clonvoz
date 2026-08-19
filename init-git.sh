@@ -1,31 +1,30 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 # Script para inicializar git en el proyecto ClonVoz
 # Ejecutar: bash init-git.sh
 
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$DIR"
+
 echo "🔧 Inicializando repositorio Git..."
 
-# Inicializar git
-git init
-
-# Configurar usuario (opcional, reemplazar con tus datos)
-# git config user.email "tu-email@example.com"
-# git config user.name "Tu Nombre"
-
-# Hunk size para archivos de audio (si usas git lfs)
-# git lfs install
-# git lfs track "*.wav"
+if [ ! -d ".git" ]; then
+    git init
+    echo "✓ Repositorio Git inicializado"
+else
+    echo "ℹ️ El repositorio Git ya se encuentra inicializado."
+fi
 
 # Agregar archivos
-git add -A
+git add .
 
-# Crear primer commit
-git commit -m "🎙️ Inicial: Proyecto ClonVoz - Generador de podcast con TTS"
-
-echo "✅ Repositorio Git inicializado"
+echo "✅ Archivos preparados en el staging"
 echo ""
-echo "Próximos pasos:"
-echo "1. Crear un repositorio en GitHub"
-echo "2. Ejecutar: git remote add origin <tu-repo-url>"
-echo "3. Ejecutar: git branch -M main"
-echo "4. Ejecutar: git push -u origin main"
+echo "Próximos pasos recomendados:"
+echo "1. git commit -m \"🎙️ Inicial: Proyecto ClonVoz - Generador de podcast con TTS\""
+echo "2. Crear un repositorio en GitHub"
+echo "3. git remote add origin <tu-repo-url>"
+echo "4. git branch -M main"
+echo "5. git push -u origin main"
+
