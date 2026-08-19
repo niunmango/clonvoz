@@ -183,7 +183,7 @@ class VoxCPM2Engine:
         reference_audio: AudioSample,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
-        apply_rioplatense: bool = False,
+        apply_rioplatense: bool = True,
         **kwargs,
     ) -> SynthesisResult:
         """

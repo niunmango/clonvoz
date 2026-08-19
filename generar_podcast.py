@@ -129,7 +129,7 @@ def main():
         res = engine.synthesize(
             text=bloque,
             reference_audio=ref_sample,
-            apply_rioplatense=False,
+            apply_rioplatense=True,
         )
         save_audio_pcm(temp_file, res.audio, sample_rate=48000, bit_depth="PCM_16")
         segmentos_audio.append(res.audio)

@@ -21,6 +21,12 @@ def test_convert_to_rioplatense_sheismo():
     # la conjunción 'y' aislada no debe alterarse
     assert " y voy " in result
 
+    # Casos especiales de morfología
+    assert convert_to_rioplatense("El proyecto de copiar llaves está llevando mucho tiempo") == (
+        "El proshecto de copiar shabes está shevando mucho tiempo"
+    )
+    assert convert_to_rioplatense("La lluvia sigue cayendo") == "La shuvia sigue cashendo"
+
 
 def test_convert_to_rioplatense_preserves_loanwords():
     """Prueba que palabras como 'YouTube' mantengan su pronunciación."""

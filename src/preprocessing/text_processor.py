@@ -19,7 +19,7 @@ def convert_to_rioplatense(text: str, aspirate_s: bool = False) -> str:
     if not text:
         return ""
 
-    # Proteger extranjerismos y términos reservados (ej: YouTube, Byte)
+    # 1. Proteger extranjerismos y términos reservados (ej: YouTube, Byte)
     protected = {}
     tokens = ["YouTube", "youtube", "Youtube", "Byte", "byte", "Bytes", "bytes", "Python", "python"]
     for i, tok in enumerate(tokens):
@@ -28,17 +28,24 @@ def convert_to_rioplatense(text: str, aspirate_s: bool = False) -> str:
             text = text.replace(tok, placeholder)
             protected[placeholder] = tok
 
-    # 1. Sheísmo: 'll' -> 'sh'
-    result = re.sub(r'll', 'sh', text, flags=re.IGNORECASE)
+    # 2. Reemplazos de palabras conflictivas con morfología inglesa antes del sheísmo general
+    # 'llave/llaves' -> 'shabe/shabes' (evita que el tokenizador multilingüe lo lea como el verbo inglés 'shave'/'shaves')
+    result = re.sub(r'\bllav([ea-zÁ-ú]*)', r'shab\1', text, flags=re.IGNORECASE)
+    result = re.sub(r'\bLlav([ea-zÁ-ú]*)', r'Shab\1', result)
 
-    # 2. 'y' vocálica/intervocálica/inicial antes de vocal -> 'sh'
-    result = re.sub(r'(?<![tTyouU])(?<![yY])yl', 'sh', result, flags=re.IGNORECASE)
-    result = re.sub(r'(?<![tTyouU])(?<![yY])y(?=[aeiouáéíóú])', 'sh', result, flags=re.IGNORECASE)
-    result = re.sub(r'(?<![tT])oo(?=[aeiouáéíóú])', 'o', result, flags=re.IGNORECASE)
+    # 3. Sheísmo general: 'll' -> 'sh'
+    result = re.sub(r'll', 'sh', result)
+    result = re.sub(r'LL', 'SH', result)
+    result = re.sub(r'Ll', 'Sh', result)
 
-    # 3. Aspiración de /s/ ante consonante (si está habilitada)
+    # 4. 'y' antes de vocal (inicio de palabra o intervocálica) -> 'sh'
+    # Ej: yo->sho, playa->plasha, cayendo->cashendo, proyecto->proshecto, ayer->asher
+    result = re.sub(r'(?<![a-zA-ZáéíóúÁÉÍÓÚ])y(?=[aeiouáéíóú])', 'sh', result, flags=re.IGNORECASE)
+    result = re.sub(r'(?<![a-zA-ZáéíóúÁÉÍÓÚ])Y(?=[aeiouáéíóú])', 'Sh', result)
+    result = re.sub(r'(?<=[a-zA-ZáéíóúÁÉÍÓÚ])y(?=[aeiouáéíóú])', 'sh', result, flags=re.IGNORECASE)
+
+    # 5. Aspiración de /s/ ante consonante (si está habilitada)
     if aspirate_s:
-        # s seguida de consonante (b, c, d, f, g, j, k, l, m, n, p, q, r, s, t, v, w, x, z)
         consonantes = r'[bcdfghjklmnpqrstvwxzBCDFGHJKLMNPQRSTVWXZ]'
         result = re.sub(rf's(?={consonantes})', 'h', result)
         result = re.sub(rf'S(?={consonantes})', 'H', result)

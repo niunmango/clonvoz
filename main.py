@@ -90,7 +90,7 @@ def cmd_generate(args):
         res = engine.synthesize(
             text=bloque,
             reference_audio=ref_sample,
-            apply_rioplatense=args.rioplatense,
+            apply_rioplatense=not args.no_rioplatense,
         )
         save_audio_pcm(temp_chunk_path, res.audio, sample_rate=48000)
         audios_bloques.append(res.audio)
@@ -187,8 +187,8 @@ def main():
     p_gen.add_argument("--model-id", default=DEFAULT_CONFIG.model_id, help="ID o ruta del modelo VoxCPM2")
     p_gen.add_argument("--dtype", default="bfloat16", help="Tipo de datos (bfloat16, float16, float32)")
     p_gen.add_argument("--attn", default="flash_attention_2", help="Implementación de atención")
-    p_gen.add_argument("--rioplatense", action="store_true", default=False, help="Activar reemplazo fonético manual (por defecto: False, VoxCPM2 clona el acento del audio de referencia)")
-    p_gen.set_defaults(func=cmd_generate, auto_trim=True, rioplatense=False)
+    p_gen.add_argument("--no-rioplatense", action="store_true", help="Desactivar transformación fonética rioplatense (por defecto: activa)")
+    p_gen.set_defaults(func=cmd_generate, auto_trim=True)
 
     # Subcomando: benchmark
     p_bench = subparsers.add_parser("benchmark", help="Ejecutar benchmark de RTF")
