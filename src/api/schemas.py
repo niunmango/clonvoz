@@ -40,8 +40,8 @@ class SynthesisRequest(BaseModel):
         description="Top-p (nucleus sampling) para la generación."
     )
     apply_rioplatense: bool = Field(
-        default=True,
-        description="Si es True, aplica adaptación fonética rioplatense (ll/y -> sh)."
+        default=False,
+        description="Si es True, aplica adaptación fonética manual (ll/y -> sh). Por defecto False, VoxCPM2 clona el acento de la muestra."
     )
     output_path: Optional[str] = Field(
         default=None,
@@ -84,8 +84,8 @@ class PodcastRequest(BaseModel):
         description="Ruta de destino del audio final normalizado."
     )
     apply_rioplatense: bool = Field(
-        default=True,
-        description="Habilita adaptación fonética rioplatense."
+        default=False,
+        description="Habilita adaptación fonética manual (ll/y -> sh). Por defecto False."
     )
 
     @field_validator("sample_transcript", mode="before")
