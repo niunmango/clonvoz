@@ -228,8 +228,6 @@ class VoxCPM2Engine:
 
                 raw_out = self.model.generate(
                     text=clean_prompt,
-                    prompt_wav_path=temp_ref_path,
-                    prompt_text=reference_audio.transcript,
                     reference_wav_path=temp_ref_path,
                     cfg_value=cfg_val,
                     inference_timesteps=timesteps,
