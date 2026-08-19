@@ -1,91 +1,110 @@
-# ClonVoz - Generador de Podcast con TTS y Clonado de Voz
+# ClonVoz 2.0 - Síntesis y Clonación Neural de Voz con VoxCPM2 (2B) y Nano-vLLM
 
-Generador de podcasts en español con soporte para fonética rioplatense utilizando el modelo neural **Qwen3-TTS** de Hugging Face.
+Sistema de generación y clonación de voz neural a **48 kHz** de alta fidelidad basado en el modelo **VoxCPM2 (2B)**, optimizado con **Nano-vLLM**, soporte para tipos de datos `bfloat16`, aceleración con **FlashAttention-2** y adaptación fonética rioplatense.
 
 ---
 
-## 🚀 Características
+## 🚀 Novedades y Características de la Versión 2.0
 
-- 🎙️ **Síntesis neural y clonación de voz:** Generación de voz natural a partir de un audio y texto de referencia (`sampleCorto.wav` / `sampleCorto.txt`).
-- 🇦🇷 **Adaptación Rioplatense:** Reglas de transformación fonética contextual para pronunciación rioplatense (*ll* e *y* a sonido *sh*).
-- 📝 **Procesamiento por bloques:** Segmentación automática de guiones por párrafos con reanudación inteligente de bloques ya generados.
-- 🎚️ **Mastering y normalización con FFmpeg:** Normalización EBU R128 (-14 LUFS), compresión de rango dinámico y limitador de picos (-1.0 dB).
-- ⚡ **Soporte Multiplataforma & Aceleración:** Detección automática de aceleración por hardware (NVIDIA CUDA / AMD ROCm / Apple Metal MPS) con fallback a CPU.
-- 🛡️ **Tolerancia a fallos de memoria (OOM):** Detección de errores de memoria en GPU con reintento automático y conmutación transparente a CPU.
-- 🔒 **Control de recursos:** Limitación de concurrencia y uso de hilos de CPU para evitar sobrecarga del sistema.
+- 🧠 **Arquitectura VoxCPM2 (2B):** Síntesis autorregresiva difusiva sin tokenizador para una reproducción fiel de fonemas y prosodia natural.
+- 🇦🇷 **Fonética Rioplatense Nativa:** Módulo de transformación fonética contextual con sheísmo (`ll` e `y` a `sh`) y preservación de extranjerismos.
+- 🎚️ **Calidad de Estudio a 48 kHz:** Pipeline de procesamiento y exportación en PCM de 16/24 bits a 48000 Hz.
+- ⏱️ **Inferencia Ultra-Rápida con Nano-vLLM:** Optimización de KV-cache, `bfloat16` y `FlashAttention-2` con objetivo de rendimiento **RTF <= 0.13 - 0.15** en GPUs NVIDIA RTX serie 4000+ (Ada Lovelace).
+- 🛡️ **Pipeline de Datos Estandarizado:** Validación estricta de muestras de referencia con rango obligatorio de **[10.0s, 15.0s]** y transcripción exacta obligatoria (`transcript`) para prevenir saturación de memoria y derivas fonéticas.
+- 🌐 **API REST FastAPI & CLI Modular:** Interfaz HTTP moderna para microservicios y CLI (`clonvoz` / `main.py`) para procesamiento por lotes.
 
 ---
 
 ## 📋 Requisitos del Sistema
 
 - **Python:** 3.10 o superior.
-- **FFmpeg:** Requerido para la concatenación, compresión y normalización final del audio.
+- **FFmpeg:** Requerido para mastering, limitador de picos y normalización EBU R128 (-14 LUFS).
   - *Ubuntu/Debian:* `sudo apt-get install ffmpeg`
   - *macOS:* `brew install ffmpeg`
-  - *Fedora/RHEL:* `sudo dnf install ffmpeg`
-- **GPU (Opcional):** Tarjeta gráfica compatible con CUDA o Apple Silicon para acelerar la inferencia.
+  - *Arch Linux:* `sudo pacman -S ffmpeg`
+- **GPU (Recomendada):** NVIDIA RTX 3000/4000 (Ampere / Ada Lovelace) o superior con CUDA 12.x y `FlashAttention-2`.
 
 ---
 
 ## 📦 Instalación
 
-### Método Automático
-
-El script de instalación prepara el entorno virtual e instala las dependencias necesarias:
-
+### 1. Clonar el repositorio
 ```bash
 git clone https://github.com/niunmango/clonvoz.git
 cd clonvoz
+```
+
+### 2. Configuración automática
+```bash
 bash setup.sh
 ```
 
-### Método Manual
-
+### 3. Configuración manual
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install --upgrade pip
+pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 ```
 
-> **Nota sobre PyTorch:** Si necesitas instalar una versión específica de PyTorch para tu plataforma:
-> ```bash
-> # Para CPU:
-> pip install torch soundfile --index-url https://download.pytorch.org/whl/cpu
->
-> # Para CUDA 12.x:
-> pip install torch soundfile --index-url https://download.pytorch.org/whl/cu124
-> ```
+---
+
+## 🎙️ Pipeline de Preprocesamiento de Audio (10-15s)
+
+Para garantizar estabilidad en la KV-cache de Nano-vLLM y evitar derivas acústicas, el pipeline impone validaciones estrictas:
+
+1. **Duración:** Las muestras deben durar entre **10.0 y 15.0 segundos**.
+   - Muestras `< 10.0s`: Rechazadas inmediatamente con `AudioValidationError`.
+   - Muestras `> 15.0s`: Rechazadas en modo estricto o recortadas a 15.0s si se activa `auto_trim=True`.
+2. **Transcripción Obligatoria:** Debe proveerse la transcripción exacta del audio de muestra (`sampleCorto.txt` o `sample_transcript`).
+3. **Normalización en Memoria:** El audio se remuestrea automáticamente a **48000 Hz mono** en memoria.
 
 ---
 
-## 🎙️ Guía de Uso
+## 💻 Modos de Uso
 
-### 1. Preparar los archivos de entrada
+### 1. Generación de Podcast vía CLI
 
-- **`guion.txt`:** Texto del podcast estructurado en párrafos (separados por una línea en blanco). Cada párrafo se procesa como un bloque independiente.
-- **`sampleCorto.txt`:** Transcripción exacta del audio de muestra.
-- **`sampleCorto.wav`:** Archivo de audio de referencia con la voz que se desea clonar (recomendado: audio limpio, 24kHz, sin ruido de fondo).
-
-### 2. Ejecución
-
-#### En primer plano:
 ```bash
+# Activar entorno
 source venv/bin/activate
+
+# Ejecución directa
 python generar_podcast.py
+
+# O utilizando la CLI avanzada
+python main.py generate --guion guion.txt --audio-ref sampleCorto.wav --transcript-ref sampleCorto.txt --output podcast_completo.wav
 ```
 
-#### En segundo plano (con registro de logs):
+### 2. Ejecución en Segundo Plano
+
 ```bash
 ./generar.sh
-# Para monitorear el progreso en tiempo real:
+# Monitorear logs en tiempo real
 tail -f salida.log
 ```
 
-### 3. Salida
+### 3. Benchmark de Rendimiento (RTF)
 
-- El audio generado final se guarda como **`podcast_completo.wav`** (o con sufijo incremental `podcast_completo_1.wav` si ya existiera el archivo previo).
-- La carpeta temporal `temp_audio/` se limpia automáticamente al finalizar la concatenación y normalización.
+Para medir el Factor de Tiempo Real (**Real-Time Factor, RTF**):
+
+```bash
+python main.py benchmark --dtype bfloat16 --attn flash_attention_2
+```
+> **Criterio de Aceptación:** RTF <= 0.15 en GPU RTX 4000 / Ada Lovelace con `bfloat16`.
+
+### 4. Servidor API REST (FastAPI)
+
+```bash
+python main.py serve --port 8000
+```
+
+Documentación interactiva disponible en `http://localhost:8000/docs`.
+
+#### Endpoints Principales:
+- `GET /health`: Estado del motor, dispositivo detectado y configuración.
+- `POST /api/v1/synthesize`: Síntesis de texto individual con muestra de referencia validada.
+- `POST /api/v1/podcast`: Procesamiento completo de guiones segmentados.
 
 ---
 
@@ -93,31 +112,44 @@ tail -f salida.log
 
 ```
 clonvoz/
-├── generar_podcast.py     # Script principal de síntesis y procesamiento
-├── generar.sh             # Lanzador en segundo plano con control de errores
-├── setup.sh               # Asistente de configuración y verificación de dependencias
-├── init-git.sh            # Script de inicialización de control de versiones
-├── guion.txt              # Guion de entrada del episodio
-├── sampleCorto.txt        # Transcripción del audio de referencia
-├── sampleCorto.wav        # Audio de muestra para clonación de voz
-├── requirements.txt       # Dependencias principales del proyecto
-├── .gitignore             # Reglas de exclusión de artefactos generados y logs
-└── README.md              # Documentación técnica
+├── pyproject.toml             # Metadatos del proyecto y dependencias PEP 621
+├── requirements.txt           # Dependencias de producción y GPU
+├── main.py                    # Entrypoint CLI principal (generate, benchmark, serve)
+├── generar_podcast.py         # Script retrocompatible de generación de podcast
+├── generar.sh                 # Lanzador de procesos en segundo plano
+├── setup.sh                   # Script de instalación con soporte CUDA 12.x
+├── guion.txt                  # Contenido del podcast (párrafos divididos)
+├── sampleCorto.txt            # Transcripción exacta de la muestra
+├── sampleCorto.wav            # Audio de referencia para clonación (10-15s)
+├── src/
+│   ├── config.py              # Parámetros globales (48kHz, RTF target, bfloat16)
+│   ├── engine/
+│   │   ├── voxcpm2_engine.py  # Runtime VoxCPM2 (2B) con Nano-vLLM y métricas RTF
+│   ├── preprocessing/
+│   │   ├── audio_loader.py    # Validación estricta 10-15s y resampling a 48kHz
+│   │   ├── text_processor.py  # Adaptación fonética rioplatense y segmentador
+│   ├── api/
+│   │   ├── schemas.py         # Modelos de validación Pydantic V2
+│   │   ├── app.py             # Aplicación FastAPI y rutas REST
+└── tests/
+    ├── test_audio_loader.py   # Tests de validación de duración y 48kHz
+    ├── test_text_processor.py # Tests de fonética y segmentación
+    ├── test_voxcpm2_engine.py # Tests del motor de inferencia y cálculo de RTF
+    ├── test_schemas.py        # Tests de esquemas Pydantic
+    └── test_pipeline.py       # Test de integración end-to-end
 ```
 
 ---
 
-## 🔒 Consideraciones de Seguridad y Buenas Prácticas
+## 🧪 Ejecución de Pruebas
 
-1. **Confianza en Modelos:** La carga del modelo utiliza `Qwen/Qwen3-TTS-12Hz-1.7B-Base` desde el repositorio oficial de Hugging Face. Modificar este identificador por repositorios no verificados puede implicar la ejecución de código no seguro mediante `trust_remote_code=True`.
-2. **Ejecución de Subprocesos:** Todas las llamadas a utilidades del sistema (`ffmpeg`) se realizan pasando listas de argumentos sin shell intermediaria (`shell=False`) y con límites de tiempo (*timeouts*), mitigando riesgos de inyección de comandos.
-3. **Aislamiento de Entorno y Privacidad:**
-   - Los archivos de registro (`*.log`, `error_log.txt`) y audios generados están excluidos de Git en `.gitignore` para evitar filtraciones accidentales de rutas o datos procesados.
-   - Las variables de entorno (`.env`, `.env.*`) están protegidas y excluidas del control de versiones.
+```bash
+source venv/bin/activate
+pytest
+```
 
 ---
 
 ## 👤 Autor
 
-- **Ramiro** ([@niunmango](https://github.com/niunmango))
-
+- **Ramiro Garcia** ([@niunmango](https://github.com/niunmango))

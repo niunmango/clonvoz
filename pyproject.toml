@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clonvoz"
+version = "2.0.0"
+description = "Síntesis de voz neural y clonación a 48kHz con VoxCPM2 (2B) y Nano-vLLM con soporte rioplatense"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Ramiro Garcia", email = "niunmango@yahoo.com" }
+]
+dependencies = [
+    "torch>=2.3.0",
+    "torchaudio>=2.3.0",
+    "voxcpm2>=0.2.0",
+    "nano-vllm>=0.1.0",
+    "soundfile>=0.12.1",
+    "librosa>=0.10.0",
+    "scipy>=1.10.0",
+    "numpy>=1.24.0",
+    "pydantic>=2.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.23.0",
+    "tqdm>=4.65.0",
+    "rich>=13.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "flash-attn>=2.5.0; platform_system == 'Linux'",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "flake8>=6.0.0",
+    "black>=23.0.0",
+]
+
+[project.scripts]
+clonvoz = "src.main:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"

@@ -1,3 +1,26 @@
-qwen-tts>=0.1.0
-soundfile>=0.12.0
-torch>=2.0.0
+# VoxCPM2 Core & Inferencia
+torch>=2.3.0
+torchaudio>=2.3.0
+voxcpm2>=0.2.0
+nano-vllm>=0.1.0
+flash-attn>=2.5.0; platform_system == "Linux"
+
+# Procesamiento de Audio y Señales
+soundfile>=0.12.1
+librosa>=0.10.0
+scipy>=1.10.0
+numpy>=1.24.0
+
+# API & Validación de Esquemas
+pydantic>=2.0.0
+fastapi>=0.100.0
+uvicorn>=0.23.0
+
+# Utilidades y CLI
+tqdm>=4.65.0
+rich>=13.0.0
+python-dotenv>=1.0.0
+
+# Pruebas
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
