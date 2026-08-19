@@ -24,7 +24,7 @@ class SynthesisRequest(BaseModel):
         description="Transcripción exacta del audio de referencia (obligatoria)."
     )
     auto_trim: bool = Field(
-        default=False,
+        default=True,
         description="Si es True, recorta automáticamente el audio a 15.0s si excede el rango."
     )
     temperature: float = Field(
@@ -76,7 +76,7 @@ class PodcastRequest(BaseModel):
         description="Transcripción exacta de la muestra de referencia."
     )
     auto_trim: bool = Field(
-        default=False,
+        default=True,
         description="Si es True, recorta la muestra si excede 15s."
     )
     output_path: str = Field(

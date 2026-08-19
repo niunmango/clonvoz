@@ -81,7 +81,7 @@ def load_reference_audio(
     min_duration: float = 10.0,
     max_duration: float = 15.0,
     target_sr: int = 48000,
-    auto_trim: bool = False,
+    auto_trim: bool = True,
     normalize: bool = True,
 ) -> AudioSample:
     """

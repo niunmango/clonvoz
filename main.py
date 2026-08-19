@@ -181,13 +181,13 @@ def main():
     p_gen.add_argument("--guion", default="guion.txt", help="Ruta al archivo de guion")
     p_gen.add_argument("--audio-ref", default="sampleCorto.wav", help="Audio de muestra")
     p_gen.add_argument("--transcript-ref", default="sampleCorto.txt", help="Transcripción de muestra")
-    p_gen.add_argument("--output", default="podcast_completo.wav", help="Archivo WAV de salida")
-    p_gen.add_argument("--auto-trim", action="store_true", default=True, help="Recortar muestra a 15s si excede")
+    p_gen.add_argument("--auto-trim", action="store_true", default=True, help="Recortar muestra a 15s si excede (por defecto: True)")
+    p_gen.add_argument("--no-auto-trim", dest="auto_trim", action="store_false", help="Desactivar recorte automático")
     p_gen.add_argument("--model-id", default=DEFAULT_CONFIG.model_id, help="ID o ruta del modelo VoxCPM2")
     p_gen.add_argument("--dtype", default="bfloat16", help="Tipo de datos (bfloat16, float16, float32)")
     p_gen.add_argument("--attn", default="flash_attention_2", help="Implementación de atención")
     p_gen.add_argument("--no-rioplatense", action="store_true", help="Desactivar transformación rioplatense")
-    p_gen.set_defaults(func=cmd_generate)
+    p_gen.set_defaults(func=cmd_generate, auto_trim=True)
 
     # Subcomando: benchmark
     p_bench = subparsers.add_parser("benchmark", help="Ejecutar benchmark de RTF")

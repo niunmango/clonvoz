@@ -24,6 +24,7 @@ class VoxCPM2Config:
     device: Optional[str] = None
     min_reference_duration: float = 10.0
     max_reference_duration: float = 15.0
+    auto_trim: bool = True
     target_rtf: float = 0.13
     default_temperature: float = 0.7
     default_top_p: float = 0.9

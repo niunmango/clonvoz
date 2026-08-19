@@ -90,8 +90,8 @@ def test_audio_loader_rejects_over_15s_strict(temp_audio_dir):
     assert "exceeds maximum" in str(excinfo.value)
 
 
-def test_audio_loader_auto_trim_over_15s(temp_audio_dir):
-    """Prueba que con auto_trim=True se recorte a exactamente 15.0s."""
+def test_audio_loader_auto_trim_over_15s_by_default(temp_audio_dir):
+    """Prueba que por defecto (sin especificar auto_trim) se recorte a 15.0s."""
     wav_path = os.path.join(temp_audio_dir, "long_22s.wav")
     create_dummy_wav(wav_path, duration_s=22.0, sample_rate=48000)
 
@@ -100,7 +100,6 @@ def test_audio_loader_auto_trim_over_15s(temp_audio_dir):
         transcript="Texto de prueba",
         min_duration=10.0,
         max_duration=15.0,
-        auto_trim=True,
     )
 
     assert sample.duration == 15.0
