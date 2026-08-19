@@ -1,8 +1,7 @@
-# VoxCPM2 Core & Inferencia
+# VoxCPM Core & Inferencia (OpenBMB VoxCPM2 2B)
 torch>=2.3.0
 torchaudio>=2.3.0
-voxcpm2>=0.2.0
-nano-vllm>=0.1.0
+voxcpm>=2.0.0
 flash-attn>=2.5.0; platform_system == "Linux"
 
 # Procesamiento de Audio y Señales

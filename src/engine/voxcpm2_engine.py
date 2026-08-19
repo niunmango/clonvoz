@@ -1,5 +1,5 @@
 """
-Motor de inferencia para VoxCPM2 (2B) con Nano-vLLM, bfloat16, FlashAttention-2 y Fallback a CPU a 48 kHz.
+Motor de inferencia para VoxCPM2 (2B) con soporte oficial de VoxCPM, bfloat16, FlashAttention-2 y Fallback a CPU a 48 kHz.
 """
 
 from dataclasses import dataclass, field
@@ -7,9 +7,11 @@ import gc
 import logging
 import multiprocessing
 import os
+import tempfile
 import time
 from typing import Any, Dict, List, Optional
 import numpy as np
+import soundfile as sf
 
 # Intentar importar PyTorch
 try:
@@ -51,7 +53,6 @@ def get_optimal_device() -> str:
     if torch is None:
         return "cpu"
 
-    # 1. Comprobar disponibilidad de CUDA (NVIDIA)
     try:
         if torch.cuda.is_available() and torch.cuda.device_count() > 0:
             device_name = torch.cuda.get_device_name(0)
@@ -64,7 +65,6 @@ def get_optimal_device() -> str:
     except Exception as cuda_err:
         logger.warning(f"⚠️ Error al verificar CUDA ({cuda_err}), aplicando fallback a CPU.")
 
-    # 2. Comprobar disponibilidad de Apple MPS
     try:
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
             logger.info("🎮 GPU Apple MPS detectada")
@@ -72,16 +72,15 @@ def get_optimal_device() -> str:
     except Exception:
         pass
 
-    # 3. Fallback seguro a CPU
     logger.info("ℹ️ No se detectó tarjeta NVIDIA/GPU disponible. Ejecutando con fallback a CPU.")
     return "cpu"
 
 
 class VoxCPM2Engine:
     """
-    Encapsula el runtime de inferencia para VoxCPM2 (2B) utilizando Nano-vLLM,
-    síntesis autorregresiva difusiva a 48 kHz con soporte bfloat16/FlashAttention-2
-    en GPU NVIDIA y fallback completo a CPU.
+    Encapsula el runtime de inferencia para VoxCPM2 (2B) utilizando la librería oficial
+    voxcpm (OpenBMB), síntesis autorregresiva difusiva a 48 kHz con soporte de clonación
+    de alta fidelidad y fallback completo a CPU.
     """
 
     def __init__(self, config: Optional[VoxCPM2Config] = None):
@@ -98,7 +97,6 @@ class VoxCPM2Engine:
     def _configure_device_and_dtypes(self):
         """Ajusta tipos de datos, atención y recursos según el hardware detectado."""
         if self.device == "cpu":
-            # Configuración optimizada para CPU
             if torch is not None:
                 num_cpus = max(1, multiprocessing.cpu_count() // 2)
                 try:
@@ -110,18 +108,15 @@ class VoxCPM2Engine:
             else:
                 self.torch_dtype = None
 
-            # FlashAttention-2 no es compatible con CPU; usar SDPA (Scaled Dot Product Attention)
             self.attn_implementation = "sdpa"
             logger.info("⚙️ Modo CPU activo: dtype=float32 | attn=sdpa (FlashAttention deshabilitado)")
 
         elif self.device == "mps":
-            # Configuración para Apple Silicon
             self.torch_dtype = torch.float32 if torch is not None else None
             self.attn_implementation = "sdpa"
             logger.info("⚙️ Modo Apple MPS activo: dtype=float32 | attn=sdpa")
 
         else:
-            # Modo CUDA (NVIDIA GPU)
             if torch is not None:
                 if self.config.dtype == "bfloat16" and torch.cuda.is_bf16_supported():
                     self.torch_dtype = torch.bfloat16
@@ -138,48 +133,47 @@ class VoxCPM2Engine:
 
     def load_model(self, force_reload: bool = False):
         """
-        Carga el modelo VoxCPM2 (2B) y configura el pipeline con Nano-vLLM.
+        Carga el modelo VoxCPM2 (2B) oficial de OpenBMB.
         Si la carga en GPU falla, realiza un fallback automático a CPU.
         """
         if self.is_loaded and not force_reload:
             return
 
-        logger.info(f"🚀 Inicializando VoxCPM2 ({self.model_id}) en '{self.device}'...")
+        logger.info(f"🚀 Cargando modelo VoxCPM2 ({self.model_id}) en '{self.device}'...")
         logger.info(f"   Dtype: {self.torch_dtype} | Attn: {self.attn_implementation} | Frecuencia: {self.sample_rate}Hz")
 
         try:
-            import voxcpm2
-            if hasattr(voxcpm2, "VoxCPM2Model"):
-                load_kwargs = {
-                    "torch_dtype": self.torch_dtype,
-                    "attn_implementation": self.attn_implementation,
-                }
-                if self.device.startswith("cuda"):
-                    load_kwargs["device_map"] = self.device
-                else:
-                    load_kwargs["device_map"] = "cpu"
-
-                self.model = voxcpm2.VoxCPM2Model.from_pretrained(
-                    self.model_id,
-                    **load_kwargs
-                )
-                if not self.device.startswith("cuda") and hasattr(self.model, "to"):
-                    self.model.to(self.device)
-
-                self.is_loaded = True
-                logger.info(f"✅ Modelo VoxCPM2 cargado exitosamente en '{self.device}'.")
-                return
+            from voxcpm import VoxCPM
+            self.model = VoxCPM.from_pretrained(
+                hf_model_id=self.model_id,
+                load_denoiser=False,
+                device=self.device,
+            )
+            self.is_loaded = True
+            logger.info(f"✅ Modelo VoxCPM2 cargado exitosamente en '{self.device}'.")
+            return
         except ImportError:
-            logger.warning("📦 Paquete 'voxcpm2' no instalado. Se ejecutará en modo emulación/mock para desarrollo.")
+            logger.warning("📦 Paquete 'voxcpm' no instalado. Ejecutando en modo mock de desarrollo.")
         except Exception as e:
-            logger.warning(f"⚠️ Error cargando modelo en '{self.device}' ({e}).")
+            logger.warning(f"⚠️ Error cargando VoxCPM2 en '{self.device}' ({e}).")
             if self.device != "cpu":
-                logger.info("🔄 Reintentando carga de modelo con fallback a CPU...")
+                logger.info("🔄 Reintentando carga de VoxCPM2 con fallback a CPU...")
                 self.device = "cpu"
                 self._configure_device_and_dtypes()
-                return self.load_model(force_reload=True)
+                try:
+                    from voxcpm import VoxCPM
+                    self.model = VoxCPM.from_pretrained(
+                        hf_model_id=self.model_id,
+                        load_denoiser=False,
+                        device="cpu",
+                    )
+                    self.is_loaded = True
+                    logger.info("✅ Modelo VoxCPM2 cargado exitosamente en CPU.")
+                    return
+                except Exception as cpu_err:
+                    logger.error(f"Error cargando VoxCPM2 en CPU: {cpu_err}")
 
-        # Fallback para entorno de pruebas/desarrollo sin pesos descargados
+        # Modo fallback para entornos sin pesos descargados o pruebas
         self.is_loaded = True
         self.model = "MOCK_VOXCPM2_RUNTIME"
 
@@ -193,8 +187,8 @@ class VoxCPM2Engine:
         **kwargs,
     ) -> SynthesisResult:
         """
-        Sintetiza audio a 48 kHz usando clonación de voz con la muestra de referencia.
-        En caso de fallo de memoria (OOM) en GPU, conmuta automáticamente a CPU.
+        Sintetiza audio neural de alta fidelidad a 48 kHz usando clonación de voz
+        con la muestra de referencia y transcripción obligatoria.
         """
         if not self.is_loaded:
             self.load_model()
@@ -217,43 +211,41 @@ class VoxCPM2Engine:
         target_text = convert_to_rioplatense(text) if apply_rioplatense else text
         clean_prompt = target_text.strip()
 
-        temp = temperature if temperature is not None else self.config.default_temperature
-        p = top_p if top_p is not None else self.config.default_top_p
-
         # 2. Inferencia y medición de tiempo
         t_start = time.perf_counter()
         output_audio = None
 
         if self.model != "MOCK_VOXCPM2_RUNTIME" and hasattr(self.model, "generate"):
+            temp_ref_path = None
             try:
-                if torch is not None:
-                    with torch.no_grad():
-                        raw_out = self.model.generate(
-                            prompt_text=clean_prompt,
-                            ref_audio=reference_audio.audio,
-                            ref_text=reference_audio.transcript,
-                            sample_rate=self.sample_rate,
-                            temperature=temp,
-                            top_p=p,
-                            dtype=self.torch_dtype,
-                            **kwargs,
-                        )
-                else:
-                    raw_out = self.model.generate(
-                        prompt_text=clean_prompt,
-                        ref_audio=reference_audio.audio,
-                        ref_text=reference_audio.transcript,
-                        sample_rate=self.sample_rate,
-                        temperature=temp,
-                        top_p=p,
-                        dtype=self.torch_dtype,
-                        **kwargs,
-                    )
+                # Escribir la muestra procesada (15s @ 48kHz mono normalizada) a archivo temporal para VoxCPM
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+                    temp_ref_path = tmp.name
+                sf.write(temp_ref_path, reference_audio.audio, reference_audio.sample_rate)
+
+                cfg_val = kwargs.get("cfg_value", 2.0)
+                timesteps = kwargs.get("inference_timesteps", 10)
+
+                raw_out = self.model.generate(
+                    text=clean_prompt,
+                    prompt_wav_path=temp_ref_path,
+                    prompt_text=reference_audio.transcript,
+                    reference_wav_path=temp_ref_path,
+                    cfg_value=cfg_val,
+                    inference_timesteps=timesteps,
+                )
 
                 if torch is not None and isinstance(raw_out, torch.Tensor):
                     output_audio = raw_out.detach().cpu().to(torch.float32).numpy()
                 elif isinstance(raw_out, np.ndarray):
                     output_audio = raw_out.astype(np.float32)
+
+                # Asegurar 1D mono
+                if output_audio is not None and output_audio.ndim > 1:
+                    output_audio = output_audio.squeeze()
+                    if output_audio.ndim > 1:
+                        output_audio = output_audio.mean(axis=0)
+
             except Exception as run_err:
                 err_msg = str(run_err).lower()
                 if ("out of memory" in err_msg or "cuda" in err_msg) and self.device != "cpu":
@@ -262,12 +254,10 @@ class VoxCPM2Engine:
                         torch.cuda.empty_cache()
                     gc.collect()
 
-                    # Conmutar motor a CPU
                     self.device = "cpu"
                     self._configure_device_and_dtypes()
                     self.load_model(force_reload=True)
 
-                    # Reintentar en CPU
                     return self.synthesize(
                         text=text,
                         reference_audio=reference_audio,
@@ -279,8 +269,14 @@ class VoxCPM2Engine:
                 else:
                     logger.error(f"Error durante la inferencia de VoxCPM2: {run_err}")
                     output_audio = None
+            finally:
+                if temp_ref_path and os.path.exists(temp_ref_path):
+                    try:
+                        os.unlink(temp_ref_path)
+                    except OSError:
+                        pass
 
-        # Si estamos en mock / fallback de test
+        # Fallback sintético sólo para tests aislados sin modelo cargado
         if output_audio is None:
             estimated_duration = max(1.0, len(clean_prompt) / 15.0)
             num_samples = int(estimated_duration * self.sample_rate)

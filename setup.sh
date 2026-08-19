@@ -72,13 +72,13 @@ if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
 
     echo "📥 Instalando paquetes con soporte de aceleración GPU..."
     "$VENV_PYTHON" -m pip install -r requirements.txt || {
-        echo "⚠️ Falló la instalación de extensiones C++/CUDA avanzadas (ej. flash-attn)."
-        echo "   Instalando dependencias base con soporte de fallback a CPU..."
-        "$VENV_PYTHON" -m pip install torch torchaudio soundfile librosa scipy numpy pydantic fastapi uvicorn pytest
+        echo "⚠️ Falló la instalación de extensiones C++/CUDA opcionales (ej. flash-attn)."
+        echo "   Instalando dependencias base con voxcpm..."
+        "$VENV_PYTHON" -m pip install torch torchaudio voxcpm soundfile librosa scipy numpy pydantic fastapi uvicorn tqdm rich pytest pytest-asyncio
     }
 else
-    echo "ℹ️ No se detectó GPU NVIDIA disponible. Configurando dependencias en modo CPU..."
-    "$VENV_PYTHON" -m pip install torch torchaudio soundfile librosa scipy numpy pydantic fastapi uvicorn pytest
+    echo "ℹ️ No se detectó GPU NVIDIA disponible. Configurando dependencias en modo CPU (VoxCPM 2B)..."
+    "$VENV_PYTHON" -m pip install torch torchaudio voxcpm soundfile librosa scipy numpy pydantic fastapi uvicorn tqdm rich pytest pytest-asyncio
 fi
 
 # Instalar el paquete en modo editable si es posible
